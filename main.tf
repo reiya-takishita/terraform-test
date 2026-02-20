@@ -1,7 +1,6 @@
 terraform {
   required_version = ">= 1.0"
 
-
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -22,121 +21,6 @@ provider "aws" {
 provider "aws" {
   alias  = "us_east_1"
   region = "us-east-1"
-}
-
-variable "aws_region" {
-  description = "AWS region"
-  type        = string
-  default     = "ap-northeast-1"
-}
-
-variable "project_name" {
-  description = "Project name for resource naming"
-  type        = string
-  default     = "ec2-webapp"
-}
-
-variable "environment" {
-  description = "Environment (dev, stg, prod)"
-  type        = string
-  default     = "dev"
-}
-
-variable "tags" {
-  description = "Common tags for all resources"
-  type        = map(string)
-  default     = {}
-}
-
-variable "vpc_cidr" {
-  description = "CIDR block for VPC"
-  type        = string
-  default     = "10.0.0.0/16"
-}
-
-variable "availability_zones" {
-  description = "Availability zones"
-  type        = list(string)
-  default     = ["ap-northeast-1a", "ap-northeast-1c"]
-}
-
-variable "instance_type" {
-  description = "EC2 instance type"
-  type        = string
-  default     = "t3.micro"
-}
-
-variable "ami_id" {
-  description = "AMI ID for EC2 instance (leave empty to use latest Amazon Linux 2)"
-  type        = string
-  default     = ""
-}
-
-variable "asg_min_size" {
-  description = "Auto Scaling Group minimum size"
-  type        = number
-  default     = 1
-}
-
-variable "asg_max_size" {
-  description = "Auto Scaling Group maximum size"
-  type        = number
-  default     = 3
-}
-
-variable "asg_desired_capacity" {
-  description = "Auto Scaling Group desired capacity"
-  type        = number
-  default     = 2
-}
-
-variable "db_instance_class" {
-  description = "RDS instance class"
-  type        = string
-  default     = "db.t4g.medium"  # Aurora MySQL 8.0対応の最小インスタンス
-}
-
-variable "aurora_instance_count" {
-  description = "Number of Aurora instances (1 = single AZ, 2+ = multi AZ for high availability)"
-  type        = number
-  default     = 2
-}
-
-variable "db_name" {
-  description = "Database name"
-  type        = string
-  default     = "appdb"
-}
-
-variable "db_username" {
-  description = "Database master username"
-  type        = string
-  default     = "admin"
-}
-
-
-variable "domain_name" {
-  description = "Custom domain name"
-  type        = string
-  default     = ""
-}
-
-variable "route53_zone_name" {
-  description = "Route53 hosted zone name (e.g. example.com) when using domain_name"
-  type        = string
-  default     = ""
-}
-
-variable "cloudfront_price_class" {
-  description = "CloudFront price class"
-  type        = string
-  default     = "PriceClass_200"  # Asia, North America, Europe
-}
-
-variable "enable_s3_versioning" {
-  description = "Enable S3 bucket versioning"
-  type        = bool
-  default     = true
 }
 
 # Data sources
@@ -630,14 +514,14 @@ resource "aws_launch_template" "main" {
 
 # Auto Scaling Group
 resource "aws_autoscaling_group" "main" {
-  name                = "${var.project_name}-${var.environment}-asg"
-  vpc_zone_identifier = aws_subnet.private[*].id
-  target_group_arns   = [aws_lb_target_group.main.arn]
-  health_check_type   = "ELB"
+  name                      = "${var.project_name}-${var.environment}-asg"
+  vpc_zone_identifier       = aws_subnet.private[*].id
+  target_group_arns         = [aws_lb_target_group.main.arn]
+  health_check_type         = "ELB"
   health_check_grace_period = 300
-  min_size            = var.asg_min_size
-  max_size            = var.asg_max_size
-  desired_capacity    = var.asg_desired_capacity
+  min_size                  = var.asg_min_size
+  max_size                  = var.asg_max_size
+  desired_capacity          = var.asg_desired_capacity
 
   launch_template {
     id      = aws_launch_template.main.id
@@ -688,7 +572,7 @@ resource "aws_db_subnet_group" "main" {
 resource "random_password" "database" {
   length           = 32
   special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"  # /,@," スペースを除外
+  override_special = "!#$%&*()-_=+[]{}<>:?" # /,@," スペースを除外
 }
 
 # Secrets Manager for database password
@@ -876,7 +760,7 @@ resource "aws_guardduty_detector" "main" {
     # Kubernetesの監査ログ（EKS使用時）
     kubernetes {
       audit_logs {
-        enable = false  # EKS未使用のためfalse
+        enable = false # EKS未使用のためfalse
       }
     }
 
@@ -905,17 +789,17 @@ resource "aws_guardduty_detector_feature" "runtime_monitoring" {
 
   additional_configuration {
     name   = "ECS_FARGATE_AGENT_MANAGEMENT"
-    status = "DISABLED"  # ECS Fargate未使用のためDISABLED
+    status = "DISABLED" # ECS Fargate未使用のためDISABLED
   }
 
   additional_configuration {
     name   = "EKS_ADDON_MANAGEMENT"
-    status = "DISABLED"  # EKS未使用のためDISABLED
+    status = "DISABLED" # EKS未使用のためDISABLED
   }
 
   additional_configuration {
     name   = "EC2_AGENT_MANAGEMENT"
-    status = "ENABLED"  # EC2のランタイム監視を有効化
+    status = "ENABLED" # EC2のランタイム監視を有効化
   }
 }
 
@@ -923,21 +807,21 @@ resource "aws_guardduty_detector_feature" "runtime_monitoring" {
 resource "aws_guardduty_detector_feature" "lambda_protection" {
   detector_id = aws_guardduty_detector.main.id
   name        = "LAMBDA_NETWORK_LOGS"
-  status      = "DISABLED"  # Lambda未使用のためDISABLED
+  status      = "DISABLED" # Lambda未使用のためDISABLED
 }
 
 # GuardDuty RDS Protection
 resource "aws_guardduty_detector_feature" "rds_protection" {
   detector_id = aws_guardduty_detector.main.id
   name        = "RDS_LOGIN_EVENTS"
-  status      = "ENABLED"  # Aurora使用のためENABLED
+  status      = "ENABLED" # Aurora使用のためENABLED
 }
 
 # GuardDuty EKS Protection
 resource "aws_guardduty_detector_feature" "eks_protection" {
   detector_id = aws_guardduty_detector.main.id
   name        = "EKS_AUDIT_LOGS"
-  status      = "DISABLED"  # EKS未使用のためDISABLED
+  status      = "DISABLED" # EKS未使用のためDISABLED
 }
 
 # GuardDuty S3 Protection（S3異常アクセス検出）
@@ -961,7 +845,7 @@ resource "aws_guardduty_detector_feature" "ebs_malware_protection" {
 # S3 Bucket for Static Files（静的ファイル用）
 resource "aws_s3_bucket" "static_assets" {
   bucket        = "${var.project_name}-${var.environment}-static-${data.aws_caller_identity.current.account_id}"
-  force_destroy = true  # terraform destroy時に、バケット内のファイルごと削除
+  force_destroy = true # terraform destroy時に、バケット内のファイルごと削除
 
   tags = merge(var.tags, {
     Name        = "${var.project_name}-${var.environment}-static"
@@ -1073,8 +957,8 @@ resource "aws_cloudfront_distribution" "main" {
 
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = 0
-    default_ttl            = 3600    # 1時間
-    max_ttl                = 86400   # 24時間
+    default_ttl            = 3600  # 1時間
+    max_ttl                = 86400 # 24時間
     compress               = true
   }
 
